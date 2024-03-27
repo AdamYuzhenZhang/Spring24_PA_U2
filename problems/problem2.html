@@ -32,7 +32,16 @@
 
     let gui = get_default_lil_gui();
 
+    let time0 = Date.now();
+    let elapsed = { time: '0'};
+    gui.add(elapsed, 'time').name('Time Elapsed:')
+
     engine.animation_loop(() => {
+        let current = Date.now();
+        let elapsedTime = current - time0;
+        let seconds = elapsedTime/1000
+        elapsed.time = '' + seconds + ' s';
+        refresh_displays(gui);
 
     });
 

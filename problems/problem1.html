@@ -30,7 +30,18 @@
 
     let gui = get_default_lil_gui();
 
+    let settings = {
+        x: 0,
+        y: 0,
+        z: 0
+    }
+    let folder = gui.addFolder('Position Controls');
+    folder.add(settings, 'x', -2.0, 2.0).name('X Position');
+    folder.add(settings, 'y', -2.0, 2.0).name('Y Position');
+    folder.add(settings, 'z', -2.0, 2.0).name('Z Position');
+
     engine.animation_loop(() => {
+        engine.draw_debug_sphere([settings.x,settings.y,settings.z], 0.04, "rgb(255, 0, 255)", 0.6);
 
     });
 
