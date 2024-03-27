@@ -20,12 +20,104 @@
 </head>
 <body>
 <script type="module">
-    import {ThreeEngine} from "../js/utils/utils_three.js";
+    import {get_default_lil_gui, ThreeEngine, refresh_displays} from "../js/utils/utils_three.js";
+    import {add_matrix_matrix, mul_matrix_matrix, transpose, mul_matrix_scalar} from "../../js/utils/utils_math.js";
 
     // todo: recreate this visualization, demonstrating your understanding of displacement-based distance in SE(2)
     // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/SE2_distance2.html
     // todo: make sure you are using the displacement-based distance!
     // todo: or, feel free to come up with any visualization here that demonstrates your understanding of SE(2) distance
+
+    let engine = ThreeEngine.new_default_2d();
+
+    let settings = {
+        theta1: 0,
+        tx1: 0,
+        ty1: 0,
+        theta2: 0,
+        tx2: 0,
+        ty2: 0,
+        dis: '0'
+    }
+
+    let actions = {
+        reset1: () => {
+            settings.theta1 = 0;
+            settings.tx1 = 0;
+            settings.ty1 = 0;
+            refresh_displays(gui);
+        },
+        reset2: () => {
+            settings.theta2 = 0;
+            settings.tx2 = 0;
+            settings.ty2 = 0;
+            refresh_displays(gui);
+        }
+    }
+
+    let gui = get_default_lil_gui();
+    gui.add(settings, 'theta1', -Math.PI*2, Math.PI*2).name('Theta1');
+    gui.add(settings, 'tx1', -2.0, 2.0).name('tx1');
+    gui.add(settings, 'ty1', -2.0, 2.0).name('ty1');
+    gui.add(actions, 'reset1').name('reset1');
+    gui.add(settings, 'theta2', -Math.PI*2, Math.PI*2).name('Theta2');
+    gui.add(settings, 'tx2', -2.0, 2.0).name('tx2');
+    gui.add(settings, 'ty2', -2.0, 2.0).name('ty2');
+    gui.add(actions, 'reset2').name('reset2');
+    gui.add(settings, 'dis').name('disp based dis').disable();
+
+    engine.animation_loop(() => {
+        let m1 = [
+            [Math.cos(settings.theta1), -Math.sin(settings.theta1)], 
+            [Math.sin(settings.theta1), Math.cos(settings.theta1)]
+        ];
+        let m2 = [
+            [Math.cos(settings.theta2), -Math.sin(settings.theta2)], 
+            [Math.sin(settings.theta2), Math.cos(settings.theta2)]
+        ];
+
+        // draw vectors
+        let x1 = add_matrix_matrix(mul_matrix_matrix(m1, [[1], [0]]), [settings.tx1, settings.ty1]);
+        let y1 = add_matrix_matrix(mul_matrix_matrix(m1, [[0], [1]]), [settings.tx1, settings.ty1]);
+        let x2 = add_matrix_matrix(mul_matrix_matrix(m2, [[1], [0]]), [settings.tx2, settings.ty2]);
+        let y2 = add_matrix_matrix(mul_matrix_matrix(m2, [[0], [1]]), [settings.tx2, settings.ty2]);
+        engine.draw_debug_vector([settings.tx1, settings.ty1], x1, 0.02, undefined, "rgb(255, 0, 0)");
+        engine.draw_debug_vector([settings.tx1, settings.ty1], y1, 0.02, undefined, "rgb(0, 255, 0)");
+        engine.draw_debug_vector([settings.tx2, settings.ty2], x2, 0.02, undefined, "rgb(200, 0, 0)");
+        engine.draw_debug_vector([settings.tx2, settings.ty2], y2, 0.02, undefined, "rgb(0, 200, 0)");
+
+        // calculate distance
+        let m1_t = transpose(m1);
+        let rot_m = mul_matrix_matrix(m1_t, m2);
+        let a1 = Math.atan2(rot_m[1][0], rot_m[0][0]);
+
+        let t = mul_matrix_matrix(mul_matrix_scalar(m1_t, -1), [[settings.tx1],[settings.ty1]]);
+        let trans = add_matrix_matrix(mul_matrix_matrix(transpose(m1), [[settings.tx2],[settings.ty2]]), t);
+
+        // combine rotation and translation
+        let p, q;
+        if(Math.abs(a1) < 0.01) {
+            p = 1.0 - (Math.pow(a1, 2.0) / 6.0) +  (Math.pow(a1, 4.0) / 120.0);
+            q = a1/2.0 - (Math.pow(a1,3.0) / 24.0) + (Math.pow(a1, 5.0) / 720.0);
+        } else {
+            p = (Math.sin(a1) / a1);
+            q = (1.0 - Math.cos(a1)) / a1;
+        }
+
+        /// apply transformation
+        let det = 1.0 / (Math.pow(p,2) + Math.pow(q, 2));
+        let Ainv = mul_matrix_scalar([[p, q], [-q, p]], det);
+        let vec = mul_matrix_matrix(Ainv, trans);
+
+
+        let a2 = vec[0][0];
+        let a3 = vec[1][0];
+        let distance = Math.sqrt(Math.pow(a1, 2) + Math.pow(a2, 2) + Math.pow(a3, 2));
+        
+        settings.dis = distance.toString();
+        refresh_displays(gui);
+    });
+
 
 </script>
 </body>

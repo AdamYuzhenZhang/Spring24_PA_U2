@@ -20,12 +20,81 @@
 </head>
 <body>
 <script type="module">
-    import {ThreeEngine} from "../js/utils/utils_three.js";
+    import {get_default_lil_gui, ThreeEngine, refresh_displays} from "../js/utils/utils_three.js";
+    import {mul_matrix_matrix} from "../../js/utils/utils_math.js";
 
     // todo: recreate this visualization, demonstrating your understanding of SE(2)
     // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/point_mapping_2D_direct_isometry.html
     // todo: (no need to draw the unit circle here)
     // todo: or, feel free to come up with any visualization here that demonstrates your understanding of SE(2)
+
+    let engine = ThreeEngine.new_default_2d();
+    engine.add_standard2Dshape_as_mesh_object(0x00eeff);
+
+    let gui = get_default_lil_gui();
+
+    let settings = {
+        draw_points: true,
+        draw_wireframe: true,
+        draw_mesh: false,
+        point_size: 0.02,
+        x: 0,
+        y: 0,
+        angle: 0
+    }
+
+    let actions = {
+        reset: function(){
+            settings.x = 0;
+            settings.y = 0;
+            settings.angle = 0;
+            refresh_displays(gui)
+        }
+    }
+
+    gui.add(settings, 'draw_points').name('Draw Points');
+    gui.add(settings, 'draw_wireframe').name('Draw Wireframe');
+    gui.add(settings, 'draw_mesh').name('Draw Mesh');
+    gui.add(settings, 'point_size', 0.001, 0.03).name('Point Size');
+
+    let folder = gui.addFolder('Isometry Controls');
+    folder.add(settings, 'x', -2.0, 2.0).name('Translation X');
+    folder.add(settings, 'y', -2.0, 2.0).name('Translation Y');
+    folder.add(settings, 'angle', -Math.PI, Math.PI).name('Rotation angle');
+    folder.add(actions, 'reset').name('Reset Matrix');
+    
+
+    let points = engine.get_local_vertex_positions_of_mesh_object(0);
+    let wireframePts = engine.get_local_vertex_positions_of_mesh_object_wireframe(0);
+
+    engine.animation_loop(() => {
+
+        let m = [[Math.cos(settings.angle), -Math.sin(settings.angle), settings.x], 
+            [Math.sin(settings.angle), Math.cos(settings.angle), settings.y], 
+            [0.,0.,1.]];
+
+        let points_moved = points.map(point => mul_matrix_matrix(m, [[point[0][0]], [point[1][0]], [1.0]]));
+        let wireframePts_moved = wireframePts.map(point => mul_matrix_matrix(m, [[point[0][0]], [point[1][0]], [1.0]]));
+
+        // draw points
+        if (settings.draw_points) {
+            points_moved.forEach(pt => {
+                engine.draw_debug_sphere(pt, settings.point_size, "rgb(255, 255, 0)");
+            });
+        }
+
+        // update mesh
+        engine.update_vertex_positions_of_mesh_object(0, points_moved);
+        engine.update_vertex_positions_of_mesh_object_wireframe(0, wireframePts_moved);
+        engine.mesh_objects[0].visible = settings.draw_mesh;
+        engine.set_mesh_object_wireframe_visibility(0, settings.draw_wireframe);
+
+        // update det
+        let det = Math.cos(settings.theta)*Math.cos(settings.theta) - -(Math.sin(settings.theta))*Math.sin(settings.theta);
+        settings.determinant = det.toString();
+        refresh_displays(gui);
+});
+
 
 </script>
 </body>
